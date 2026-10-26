@@ -1,0 +1,169 @@
+/* Pantalla dividida: conversación a la izquierda, lienzo en vivo a la derecha. */
+
+.arranque {
+  height: 100dvh;
+  background: var(--papel);
+}
+
+.espacio {
+  display: grid;
+  grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.espacio[hidden] {
+  display: none;
+}
+
+.panel-chat,
+.panel-lienzo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-chat {
+  position: relative;
+  background: var(--superficie);
+  border-right: 1px solid var(--linea);
+}
+
+.panel-lienzo {
+  background: var(--papel);
+}
+
+.boton-icono {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radio-s);
+}
+
+/* Marca: un sello pequeño de tinta, sin logotipo ajeno. */
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.marca h1 {
+  font-size: var(--t-15);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.marca p {
+  font-size: var(--t-12);
+  color: var(--tinta-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.marca-sello {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--tinta);
+}
+
+.marca-sello::before {
+  content: "";
+  position: absolute;
+  inset: 7px 8px 6px 8px;
+  border: 1.5px solid var(--tinta-inversa);
+  border-radius: 2px;
+  border-top-right-radius: 5px;
+}
+
+.marca-sello::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 13px;
+  width: 5px;
+  height: 3px;
+  border-left: 1.5px solid var(--tinta-inversa);
+  border-bottom: 1.5px solid var(--tinta-inversa);
+  transform: rotate(-45deg);
+}
+
+/* Conmutador móvil */
+.conmutador {
+  display: none;
+}
+
+.punto-actividad {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--tinta);
+  vertical-align: 2px;
+  animation: latido 1.4s var(--curva) infinite;
+}
+
+@media (max-width: 899px) {
+  .espacio {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .conmutador {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--superficie);
+    border-bottom: 1px solid var(--linea);
+  }
+
+  .conmutador-segmentos {
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 10px;
+    background: var(--relleno);
+  }
+
+  .conmutador-segmentos button {
+    height: 30px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--tinta-2);
+    font-size: var(--t-13);
+    font-weight: 500;
+    transition:
+      background-color var(--t-rapida) var(--curva),
+      color var(--t-rapida) var(--curva);
+  }
+
+  .conmutador-segmentos button[aria-selected="true"] {
+    background: var(--hoja);
+    color: var(--tinta);
+    box-shadow: 0 1px 2px oklch(0.25 0.02 75 / 0.12);
+  }
+
+  .conmutador-acciones {
+    display: flex;
+    gap: 2px;
+  }
+
+  .espacio[data-panel="chat"] .panel-lienzo,
+  .espacio[data-panel="lienzo"] .panel-chat {
+    display: none;
+  }
+
+  .panel-chat {
+    border-right: 0;
+  }
+}
