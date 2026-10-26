@@ -38,7 +38,8 @@ const REGLAS: { patron: RegExp; motivo: string }[] = [
   { patron: /\baws\s+s3\s+(rm|rb)\b/, motivo: "Borrados en S3 no permitidos desde el agente (cuenta de producción)." },
   {
     // Solo la ejecución (bash x.sh, source x.sh, ./x.sh al inicio de un comando), no las menciones.
-    patron: /(\b(ba|z)?sh|\bsource)\s+\S*99-eliminar\.sh|(^|[;&|(]\s*)\S*99-eliminar\.sh/,
+    patron:
+      /(\b(ba|z)?sh|\bsource|\bpwsh|\bpowershell(\.exe)?)\s+(-\w+\s+)*\S*99-eliminar\.(sh|ps1)|(^|[;&|(]\s*)\S*99-eliminar\.(sh|ps1)/,
     motivo: "El script de borrado de infraestructura solo lo ejecuta un humano en CloudShell.",
   },
 ]

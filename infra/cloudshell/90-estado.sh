@@ -1,10 +1,13 @@
 #!/bin/bash
 # Estado de todo lo del reto (solo lectura, sin imprimir secretos).
-# Uso: REGION=us-east-2 bash infra/cloudshell/90-estado.sh
+# Uso: bash infra/cloudshell/90-estado.sh      (región por defecto us-east-2)
 set -euo pipefail
 # shellcheck source=infra/cloudshell/00-variables.sh
 source "$(dirname "$0")/00-variables.sh"
 
+echo "── Inventario registrado en $ESTADO"
+jq . "$ESTADO"
+echo
 echo "── Lightsail ($SVC)"
 aws lightsail get-container-services --region "$REGION" \
   --query "containerServices[?starts_with(containerServiceName, '$PROYECTO')].{servicio:containerServiceName,estado:state,version:currentDeployment.version,despliegue:currentDeployment.state,url:url}" \

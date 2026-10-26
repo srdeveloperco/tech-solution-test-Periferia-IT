@@ -2,15 +2,10 @@
 # Paso 2: Cognito. User Pool (login con email) + App Client público (sin secreto) + grupo admin + usuario evaluador.
 # El backend llama InitiateAuth (USER_PASSWORD_AUTH), valida el ID token con aws-jwt-verify y lee `cognito:groups`:
 #   grupo "admin" → chat + observatorio · sin grupo → solo chat.
-# Uso: REGION=us-east-2 TEST_PASSWORD='Perxia#Reto03-2026' bash infra/cloudshell/02-cognito.sh
+# Uso: TEST_PASSWORD='Perxia#Reto03-2026' bash infra/cloudshell/02-cognito.sh   (región por defecto us-east-2)
 set -euo pipefail
 # shellcheck source=infra/cloudshell/00-variables.sh
 source "$(dirname "$0")/00-variables.sh"
-
-guardar() { # guardar CLAVE VALOR → estado.env (sin duplicar)
-  sed -i "/^export $1=/d" "$ESTADO"
-  echo "export $1=\"$2\"" >>"$ESTADO"
-}
 
 # 2.1 User Pool: login con email, solo administradores crean usuarios, sin MFA,
 #     contraseña ≥12 con mayúscula, minúscula, número y símbolo.
@@ -28,10 +23,14 @@ if [ -z "$POOL_ID" ] || [ "$POOL_ID" = "None" ]; then
     --user-pool-tags "proyecto=$PROYECTO,desechable=true" \
     --query 'UserPool.Id' --output text)"
   echo "User Pool creado: $POOL_ID"
+  guardar_estado POOL_CREADO si
 else
   echo "User Pool ya existía: $POOL_ID"
+  [ "$(leer_estado POOL_CREADO)" = "si" ] || guardar_estado POOL_CREADO existia
 fi
-guardar POOL_ID "$POOL_ID"
+guardar_estado POOL_NAME "$POOL_NAME"
+guardar_estado POOL_ID "$POOL_ID"
+guardar_estado POOL_ARN "$(aws cognito-idp describe-user-pool --region "$REGION" --user-pool-id "$POOL_ID" --query 'UserPool.Arn' --output text)"
 
 # 2.2 App Client público, sin secreto, solo usuario/contraseña + refresh
 CLIENT_ID="$(aws cognito-idp list-user-pool-clients --region "$REGION" --user-pool-id "$POOL_ID" \
@@ -51,7 +50,8 @@ if [ -z "$CLIENT_ID" ] || [ "$CLIENT_ID" = "None" ]; then
 else
   echo "App Client ya existía: $CLIENT_ID"
 fi
-guardar CLIENT_ID "$CLIENT_ID"
+guardar_estado CLIENT_NAME "$CLIENT_NAME"
+guardar_estado CLIENT_ID "$CLIENT_ID"
 
 # 2.3 Grupo admin (acceso total: chat + observatorio)
 if ! aws cognito-idp get-group --region "$REGION" --user-pool-id "$POOL_ID" --group-name "$GRUPO_ADMIN" >/dev/null 2>&1; then
@@ -81,6 +81,8 @@ vigencia="$(aws cognito-idp initiate-auth --region "$REGION" --client-id "$CLIEN
   --auth-flow USER_PASSWORD_AUTH --auth-parameters "$PARAMS" \
   --query 'AuthenticationResult.ExpiresIn' --output text)"
 unset PARAMS
+guardar_estado GRUPO_ADMIN "$GRUPO_ADMIN"
+guardar_estado TEST_USER "$TEST_USER"
 echo "Login OK (token válido por ${vigencia}s). Grupos de $TEST_USER:"
 aws cognito-idp admin-list-groups-for-user --region "$REGION" --user-pool-id "$POOL_ID" \
   --username "$TEST_USER" --query 'Groups[].GroupName' --output text

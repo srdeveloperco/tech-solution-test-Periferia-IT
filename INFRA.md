@@ -1,44 +1,227 @@
 # INFRA.md — Despliegue en AWS (desechable) y borrado seguro
 
-Guía comando a comando para **AWS CloudShell** (bash + AWS CLI v2, ya instalados al abrir CloudShell desde la consola).
-Los mismos comandos sirven en una terminal local con AWS CLI v2 configurado (y Docker, solo para el plan B).
+Dos caminos con el mismo resultado:
+
+- **Opción A (recomendada): PowerShell en tu máquina** con el perfil de AWS CLI `juan` y Docker local.
+- **Opción B: AWS CloudShell** (bash en el navegador), sin instalar nada.
+
+Región: **`us-east-2` (Ohio)**, confirmada sin productos de producción. Es el valor por defecto de todos los scripts
+y se puede cambiar con `$env:AWS_REGION` (PowerShell) o `REGION` (bash).
 
 > **La cuenta es de producción y tiene otros productos.** Todo lo de este reto:
 > - se llama `perxia-reto03-*`,
 > - lleva los tags `proyecto=perxia-reto03` y `desechable=true`,
-> - vive en **una región dedicada** que tú eliges (una donde no haya producción),
-> - se borra con la sección [12. Borrado](#12-borrado-solo-lo-del-reto), que verifica nombre y tag antes de tocar algo.
+> - vive en `us-east-2` (salvo IAM, que es global),
+> - queda registrado en `infra/.generated/estado.json` (ignorado por git) con sus IDs y ARNs reales,
+> - se borra con `99-eliminar`, que lee ese inventario **y además** verifica nombre y tag antes de tocar algo.
 >
-> Nunca uses comandos de borrado con nombres distintos a los de la tabla de inventario.
-
-Scripts equivalentes en `infra/cloudshell/` (para quien prefiera clonar el repo): `00-variables.sh`, `01-lightsail.sh`,
-`02-cognito.sh`, `03-oidc-rol.sh`, `04-deploy-manual.sh`, `90-estado.sh`, `99-eliminar.sh`.
+> Nunca uses comandos de borrado con nombres distintos a los del inventario.
 
 ---
 
-## 0. Inventario: lo único que se crea
+## Inventario exacto de lo que se crea
 
-| # | Recurso | Nombre exacto | Dónde | Lo crea | Costo aprox. | Cómo se borra |
+Cuenta: la del perfil `juan` (`aws sts get-caller-identity --profile juan`). Región: `us-east-2`.
+
+| # | Recurso | Identificador exacto | Ámbito | Clave en `estado.json` | Costo aprox. | Se borra con |
 |---|---|---|---|---|---|---|
-| 1 | Lightsail Container Service (micro, 1 nodo) | `perxia-reto03-oc-agent` | `$REGION` | §3 | ≈ USD 10/mes, prorrateado por hora (unos centavos por día de prueba) | `aws lightsail delete-container-service` (borra imágenes y despliegues) |
-| 2 | Cognito User Pool | `perxia-reto03-usuarios` | `$REGION` | §4 | USD 0 (nivel gratuito, < 10.000 usuarios activos/mes) | `aws cognito-idp delete-user-pool` (borra App Client y usuarios) |
-| 2a | └ App Client público, sin secreto | `perxia-reto03-web` | dentro del pool | §4 | — | se borra con el pool |
-| 2b | └ Grupo con acceso total (chat + observatorio) | `admin` | dentro del pool | §4 | — | se borra con el pool |
-| 2c | └ Usuario de los evaluadores (grupo `admin`) | `evaluador@periferia-ficticia.com` | dentro del pool | §4 | — | se borra con el pool |
-| 3 | Rol IAM para GitHub Actions | `perxia-reto03-gha-deploy` | global | §6 | USD 0 | `delete-role-policy` + `delete-role` |
-| 3a | └ Política inline (solo Lightsail, solo `$REGION`) | `perxia-reto03-lightsail-deploy` | dentro del rol | §6 | — | `delete-role-policy` |
-| 4 | Proveedor OIDC `token.actions.githubusercontent.com` | (ARN fijo de la cuenta) | global | §5 **solo si no existía** | USD 0 | **solo** si tiene tag `proyecto=perxia-reto03` |
-| 5 | Carpeta de trabajo en CloudShell | `~/perxia-reto03` | tu CloudShell | §2 | USD 0 | `rm -rf ~/perxia-reto03` |
+| 1 | Lightsail Container Service (micro, 1 nodo), con sus imágenes y despliegues | `perxia-reto03-oc-agent` | `us-east-2` | `LIGHTSAIL_SERVICIO`, `LIGHTSAIL_ARN`, `LIGHTSAIL_CREADO`, `URL` | ≈ USD 10/mes prorrateado por hora | `delete-container-service` (borra imágenes y despliegues) |
+| 2 | Cognito User Pool (login por email) | `perxia-reto03-usuarios` | `us-east-2` | `POOL_NAME`, `POOL_ID`, `POOL_ARN`, `POOL_CREADO` | USD 0 (nivel gratuito) | `delete-user-pool` |
+| 2a | └ App Client público, sin secreto | `perxia-reto03-web` | dentro del pool | `CLIENT_NAME`, `CLIENT_ID` | — | se borra con el pool |
+| 2b | └ Grupo con acceso total (chat + observatorio) | `admin` | dentro del pool | `GRUPO_ADMIN` | — | se borra con el pool |
+| 2c | └ Usuario de los evaluadores, en el grupo `admin` | `evaluador@periferia-ficticia.com` | dentro del pool | `TEST_USER` | — | se borra con el pool |
+| 3 | IAM Role para GitHub Actions | `perxia-reto03-gha-deploy` | global (IAM) | `ROLE_NAME`, `ROLE_ARN`, `ROLE_CREADO` | USD 0 | `delete-role` |
+| 3a | └ Política inline (solo Lightsail, solo `us-east-2`) | `perxia-reto03-lightsail-deploy` | dentro del rol | `ROLE_POLICY` | — | `delete-role-policy` (antes del rol) |
+| 4 | IAM OIDC provider `token.actions.githubusercontent.com` | `arn:aws:iam::<cuenta>:oidc-provider/token.actions.githubusercontent.com` | global (IAM) | `OIDC_ARN`, `OIDC_CREADO` (`si` / `no`) | USD 0 | **solo** si `OIDC_CREADO` no es `no` **y** tiene tag `proyecto=perxia-reto03` |
+| 5 | Nada más | — | — | — | — | — |
 
-No se crean VPC, balanceadores, buckets, bases de datos gestionadas, ECR ni claves de acceso de IAM.
-Lightsail no se conecta a las VPC de producción.
+- **No** se crean VPC, subredes, balanceadores, ECR, S3, Lambda, bases de datos gestionadas ni claves de acceso de IAM.
+- Si el proveedor OIDC **ya existía** (puede usarlo producción), se reutiliza, se registra `OIDC_CREADO=no` y **jamás** se borra.
+- Archivos locales: `infra/.generated/` (estado y JSON temporales). Se borra al final del paso de eliminación.
+- Consultar inventario contra AWS en cualquier momento: `.\infra\powershell\90-estado.ps1` o `bash infra/cloudshell/90-estado.sh`.
+
+---
+
+## Opción A (recomendada): PowerShell local con perfil `juan`
+
+Funciona en Windows PowerShell 5.1 y en PowerShell 7 (Windows, macOS o Linux). Cada script fija
+`$env:AWS_PROFILE = "juan"` y además pasa `--profile juan` y `--region` explícitos en cada llamada.
+Antes del primer cambio muestra cuenta, usuario y región y pide escribir `si`.
+
+### A0. Requisitos
+
+| Necesitas | Para qué | Cómo comprobarlo |
+|---|---|---|
+| AWS CLI v2 con el perfil `juan` (admin, autenticado) | todos los pasos | `aws sts get-caller-identity --profile juan` |
+| Git y una copia del repo | los scripts leen plantillas de `infra/` | `git clone https://github.com/srdeveloperco/tech-solution-test-Periferia-IT.git` |
+| Docker Desktop corriendo | solo plan B (`04-deploy-local.ps1`) | `docker info` |
+| `lightsailctl` | solo plan B (subir la imagen) | `lightsailctl --version` (el script 04 lo instala en Windows si falta) |
+| GitHub CLI `gh` autenticado | opcional, para configurar GitHub sin la UI (`05-github.ps1`) | `gh auth status` |
+
+Instalar `lightsailctl` a mano:
+
+```powershell
+# Windows (PowerShell): descarga a %LOCALAPPDATA%\lightsailctl y lo agrega a tu PATH de usuario
+$d = Join-Path $env:LOCALAPPDATA "lightsailctl"; New-Item -ItemType Directory -Force -Path $d | Out-Null
+Invoke-WebRequest -UseBasicParsing -Uri https://s3.us-west-2.amazonaws.com/lightsailctl/latest/windows-amd64/lightsailctl.exe -OutFile "$d\lightsailctl.exe"
+[Environment]::SetEnvironmentVariable("Path", "$d;" + [Environment]::GetEnvironmentVariable("Path", "User"), "User")
+$env:Path = "$d;$env:Path"; lightsailctl --version
+```
+
+```bash
+# macOS (Apple Silicon; en Intel usa darwin-amd64) / Linux (linux-amd64)
+sudo curl -fsSL https://s3.us-west-2.amazonaws.com/lightsailctl/latest/darwin-arm64/lightsailctl -o /usr/local/bin/lightsailctl
+sudo chmod +x /usr/local/bin/lightsailctl && lightsailctl --version
+```
+
+### A1. Abrir PowerShell en la raíz del repo
+
+```powershell
+cd C:\ruta\a\tech-solution-test-Periferia-IT
+git checkout claude/compassionate-bardeen-ip65go
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # solo esta ventana; permite correr los scripts
+$env:AWS_REGION = "us-east-2"                                 # opcional: ya es el valor por defecto
+$env:TEST_PASSWORD = 'Perxia#Reto03-2026'                     # clave del usuario evaluador (>=12, mayúscula, minúscula, número, símbolo)
+aws sts get-caller-identity --profile juan                    # confirma la cuenta antes de empezar
+```
+
+### A2. Lightsail (servicio de contenedores)
+
+```powershell
+.\infra\powershell\01-lightsail.ps1
+```
+
+Crea `perxia-reto03-oc-agent` (micro, 1 nodo, con tags), espera `READY` y registra el ARN en `estado.json`.
+
+### A3. Cognito (login obligatorio, grupo `admin`, usuario evaluador)
+
+```powershell
+.\infra\powershell\02-cognito.ps1
+```
+
+Crea el User Pool, el App Client sin secreto, el grupo `admin` y el usuario `evaluador@periferia-ficticia.com`
+con la clave de `$env:TEST_PASSWORD`, lo agrega a `admin`, prueba el login e imprime `COGNITO_USER_POOL_ID` y `COGNITO_CLIENT_ID`.
+Para usuarios adicionales, ver [§4.6](#4-cognito-login-obligatorio-del-link) (mismos comandos, agregando `--profile juan`).
+
+### A4. Identidad de GitHub Actions (OIDC + rol)
+
+```powershell
+.\infra\powershell\03-oidc-rol.ps1
+```
+
+Verifica si el proveedor OIDC ya existe (si existe, lo reutiliza y registra `OIDC_CREADO=no`), crea el rol
+`perxia-reto03-gha-deploy` con su política inline mínima e imprime **todas** las variables para GitHub.
+
+### A5. Configurar GitHub
+
+**Con la UI:** sigue [§7](#7-configurar-github-en-el-navegador) con los valores que imprimió A4.
+
+**Con `gh` (opcional):**
+
+```powershell
+.\infra\powershell\05-github.ps1
+```
+
+Crea el environment `aws-demo`, fija las variables de repositorio desde `estado.json` y pide `ANTHROPIC_API_KEY`
+de forma interactiva; si `$env:TEST_PASSWORD` existe, la guarda como secreto para la prueba de login del deploy.
+Equivalente manual con `gh`:
+
+```powershell
+$R = "srdeveloperco/tech-solution-test-Periferia-IT"
+gh api --method PUT "repos/$R/environments/aws-demo" --silent
+gh variable set AWS_ROLE_ARN --repo $R --body "<ROLE_ARN de A4>"
+gh variable set AWS_REGION --repo $R --body "us-east-2"
+gh variable set LIGHTSAIL_SERVICE --repo $R --body "perxia-reto03-oc-agent"
+gh variable set COGNITO_REGION --repo $R --body "us-east-2"
+gh variable set COGNITO_USER_POOL_ID --repo $R --body "<POOL_ID de A3>"
+gh variable set COGNITO_CLIENT_ID --repo $R --body "<CLIENT_ID de A3>"
+gh variable set PRESUPUESTO_USD --repo $R --body "10"
+gh secret set ANTHROPIC_API_KEY --repo $R --env aws-demo      # la pide oculta
+gh secret set TEST_PASSWORD --repo $R --env aws-demo          # opcional: activa la prueba de login
+```
+
+### A6. Desplegar
+
+**Camino normal (CI/CD):** haz push a `claude/compassionate-bardeen-ip65go` (o a `main`). El workflow **Deploy**
+corre CI, construye la imagen, la sube a Lightsail, despliega con `AUTH_MODO=cognito` y hace la prueba de humo
+(ver [§8](#8-desplegar-y-obtener-la-url)).
+
+```powershell
+git push -u origin claude/compassionate-bardeen-ip65go
+```
+
+**Plan B (Docker local, sin GitHub Actions):**
+
+```powershell
+$env:ANTHROPIC_API_KEY = "<tu clave>"     # opcional: si falta, el script la pide oculta; nunca se imprime
+.\infra\powershell\04-deploy-local.ps1
+```
+
+Construye `linux/amd64`, sube con `aws lightsail push-container-image`, genera `containers.json` (UTF-8 sin BOM,
+se borra al terminar), despliega, espera `ACTIVE`, imprime la URL y prueba `/api/health` (200),
+`/api/casos` sin token (401) y el login del evaluador (200).
+
+### A7. Verificar
+
+```powershell
+.\infra\powershell\90-estado.ps1
+```
+
+Prueba manual de acceso cerrado y login:
+
+```powershell
+$URL = (aws lightsail get-container-services --service-name perxia-reto03-oc-agent --profile juan --region us-east-2 --query "containerServices[0].url" --output text).TrimEnd([char]"/")
+try { Invoke-WebRequest -UseBasicParsing "$URL/api/casos" | Out-Null } catch { "sin token -> " + [int]$_.Exception.Response.StatusCode }   # esperado 401
+$cuerpo = @{ usuario = "evaluador@periferia-ficticia.com"; clave = $env:TEST_PASSWORD } | ConvertTo-Json
+(Invoke-WebRequest -UseBasicParsing -Method Post -ContentType "application/json" -Body $cuerpo "$URL/api/auth/login").StatusCode   # esperado 200
+```
+
+> Nunca corras `aws lightsail get-container-services` sin `--query`: la respuesta completa incluye la clave del modelo.
+
+### A8. Acceso para evaluadores
+
+URL de A7 + usuario `evaluador@periferia-ficticia.com` + la clave de `TEST_PASSWORD`. Detalle en [§8.1](#81-acceso-para-evaluadores).
+
+### A9. Borrar todo (al terminar la defensa)
+
+```powershell
+.\infra\powershell\99-eliminar.ps1              # simulación: muestra qué borraría
+.\infra\powershell\99-eliminar.ps1 -Ejecutar    # borra; pide escribir perxia-reto03
+.\infra\powershell\90-estado.ps1                # confirma que no queda nada
+```
+
+Orden: Lightsail → Cognito (con App Client, grupo y usuarios) → política inline → rol → OIDC (solo si es del reto) →
+`infra/.generated/`. Aborta si `estado.json` es de otra cuenta o región. Luego limpia GitHub y Anthropic ([§12.7](#12-borrado-solo-lo-del-reto)).
+
+---
+
+# Opción B: AWS CloudShell (alternativa)
+
+Mismos pasos en bash desde el navegador. Dos formas:
+
+- **Con los scripts** (registran `infra/.generated/estado.json` en la copia del repo):
+
+  ```bash
+  git clone https://github.com/srdeveloperco/tech-solution-test-Periferia-IT.git && cd tech-solution-test-Periferia-IT
+  git checkout claude/compassionate-bardeen-ip65go
+  export TEST_PASSWORD='Perxia#Reto03-2026'
+  bash infra/cloudshell/01-lightsail.sh
+  bash infra/cloudshell/02-cognito.sh
+  bash infra/cloudshell/03-oidc-rol.sh
+  bash infra/cloudshell/90-estado.sh
+  ```
+
+  Borrado: `bash infra/cloudshell/99-eliminar.sh` (simulación) y luego con `--ejecutar`.
+- **Comando a comando**, con las secciones 1 a 12 de abajo. En ese caso no hay `estado.json`: el borrado decide
+  por nombre exacto y tag (y el OIDC solo si tiene el tag del reto).
+
+Los mismos comandos bash sirven en una terminal local con AWS CLI v2 (agrega `--profile juan` o exporta `AWS_PROFILE=juan`).
 
 ---
 
 ## 1. Antes de empezar
 
-1. Entra a la consola de AWS con la cuenta admin y **cambia a la región elegida** (arriba a la derecha).
-   Recomendado: una región sin productos de producción, por ejemplo `us-east-2` (Ohio). Lightsail Containers y Cognito deben estar disponibles en ella.
+1. Entra a la consola de AWS con la cuenta admin y **cambia a la región `us-east-2` (Ohio)** (arriba a la derecha).
 2. Abre **CloudShell** (icono `>_` en la barra superior).
 3. Ten a mano: la clave del modelo (`ANTHROPIC_API_KEY`) y acceso de administrador al repo de GitHub.
 
@@ -47,7 +230,7 @@ Lightsail no se conecta a las VPC de producción.
 ## 2. Variables (pega esto primero, en cada sesión nueva de CloudShell)
 
 ```bash
-export REGION=us-east-2            # ← cámbiala si producción usa esta región
+export REGION=us-east-2            # región del reto (sin productos de producción)
 export PROYECTO=perxia-reto03
 export AWS_REGION=$REGION AWS_DEFAULT_REGION=$REGION
 export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -465,10 +648,10 @@ aws lightsail get-container-log --region $REGION --service-name $SVC --container
 ```
 
 **Datos efímeros.** Dentro del contenedor, `out/` guarda `control.csv`, `log.jsonl`, `sap/ordenes.jsonl`, las
-evidencias y la base de observabilidad **SQLite** (`out/observatorio.db`, vía `bun:sqlite`). Todo eso **se pierde al
-redesplegar o reiniciar** el contenedor; es aceptable para la demo (el PRD pide archivos, sin base de datos).
-En producción iría a almacenamiento gestionado: la observabilidad a una base administrada (por ejemplo RDS/Aurora
-o DynamoDB) y las evidencias y el log de control a S3 con versionado.
+evidencias y una sola base **SQLite** `out/oc.db` (vía `bun:sqlite`, con migraciones) que guarda conversaciones y el
+observatorio. Todo eso **se pierde al redesplegar o reiniciar** el contenedor; es aceptable para la demo (el PRD pide
+archivos, sin base de datos gestionada). En producción iría a almacenamiento gestionado: conversaciones y observatorio
+en una base administrada (por ejemplo RDS/Aurora PostgreSQL) y las evidencias y el log de control en S3 con versionado.
 
 ---
 
@@ -556,3 +739,7 @@ con `--ejecutar` borra tras pedir que escribas `perxia-reto03`. Nunca toca recur
 | `InvalidPasswordException` | la clave no cumple la política (≥12, mayúscula, minúscula, número, símbolo) | usa otra clave en `TEST_PASSWORD` |
 | Nadie puede entrar al link | faltan `COGNITO_*` en el contenedor (el backend falla cerrado) | revisa las variables de §7 y redespliega |
 | `create-open-id-connect-provider`: `EntityAlreadyExists` | el proveedor ya existía | normal: se reutiliza (§5) |
+| PowerShell: "la ejecución de scripts está deshabilitada" | política de ejecución de Windows | `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` (solo esa ventana) |
+| AWS CLI: `Error parsing parameter ... file://` en Windows | JSON guardado con BOM (`Out-File` en 5.1) | los scripts usan UTF-8 sin BOM; si editas a mano usa `[IO.File]::WriteAllText` |
+| `push-container-image`: "lightsailctl not found" | falta el plugin o no está en el PATH | A0 (instalación) y abre una ventana nueva de PowerShell |
+| Un script pide confirmar cuenta y región | protección antes del primer cambio | escribe `si` solo si son la cuenta del perfil `juan` y `us-east-2` |

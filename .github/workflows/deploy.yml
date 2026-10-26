@@ -76,6 +76,11 @@ jobs:
           COGNITO_USER_POOL_ID: ${{ vars.COGNITO_USER_POOL_ID }}
           COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
           PRESUPUESTO_USD: ${{ vars.PRESUPUESTO_USD || '10' }}
+          # Modelos por agente: si la variable no existe, se usa el valor de la plantilla.
+          LLM_MODELO_ROUTER: ${{ vars.LLM_MODELO_ROUTER }}
+          LLM_MODELO_OPERADOR: ${{ vars.LLM_MODELO_OPERADOR }}
+          LLM_MODELO_ASESOR: ${{ vars.LLM_MODELO_ASESOR }}
+          LLM_MODELO_CONVERSADOR: ${{ vars.LLM_MODELO_CONVERSADOR }}
         run: |
           # Falla cerrado: sin Cognito configurado no se despliega (el link nunca queda abierto).
           for v in COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_CLIENT_ID ANTHROPIC_API_KEY; do
@@ -92,7 +97,9 @@ jobs:
             | .app.environment.COGNITO_REGION = $ENV.COGNITO_REGION
             | .app.environment.COGNITO_USER_POOL_ID = $ENV.COGNITO_USER_POOL_ID
             | .app.environment.COGNITO_CLIENT_ID = $ENV.COGNITO_CLIENT_ID
-            | .app.environment.PRESUPUESTO_USD = $ENV.PRESUPUESTO_USD' \
+            | .app.environment.PRESUPUESTO_USD = $ENV.PRESUPUESTO_USD
+            | reduce ("LLM_MODELO_ROUTER", "LLM_MODELO_OPERADOR", "LLM_MODELO_ASESOR", "LLM_MODELO_CONVERSADOR") as $k
+                (.; if ($ENV[$k] // "") != "" then .app.environment[$k] = $ENV[$k] else . end)' \
             infra/lightsail/containers.template.json > "$contenedores"
 
           # --query: la respuesta completa incluye las variables de entorno; solo pedimos la versión.

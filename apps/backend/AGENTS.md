@@ -19,4 +19,4 @@ Reglas:
 - No registres el contenido de variables de entorno ni encabezados de autorización.
 - Tests opcionales en esta fase (`*.test.ts` junto al código). El proveedor `guion` permite probar el ciclo sin red.
 - Autenticación: Cognito (`AUTH_MODO=cognito`). El backend valida el ID token; el front nunca ve claves.
-- Presupuesto global de IA (`PRESUPUESTO_USD`) y observabilidad en SQLite (`out/observatorio.db`, efímera).
+- Presupuesto global de IA (`PRESUPUESTO_USD`) y conversaciones + observatorio en una sola SQLite con migraciones (`out/oc.db`, efímera).

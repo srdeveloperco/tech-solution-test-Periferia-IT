@@ -1,12 +1,12 @@
 #!/bin/bash
 # BORRADO de todo lo creado por el reto. Por defecto es simulación (dry-run): solo muestra qué haría.
-#   REGION=us-east-2 bash infra/cloudshell/99-eliminar.sh              # simulación
-#   REGION=us-east-2 bash infra/cloudshell/99-eliminar.sh --ejecutar   # borra (pide confirmación escrita)
+#   bash infra/cloudshell/99-eliminar.sh              # simulación (región por defecto us-east-2)
+#   bash infra/cloudshell/99-eliminar.sh --ejecutar   # borra (pide confirmación escrita)
 #
 # Guardas:
-#   - Solo actúa sobre nombres que empiezan por "perxia-reto03".
-#   - Antes de borrar el rol y el User Pool comprueba el tag proyecto=perxia-reto03.
-#   - El proveedor OIDC de GitHub SOLO se borra si tiene el tag proyecto=perxia-reto03 (si ya existía, se conserva).
+#   - Lee el inventario infra/.generated/estado.json (debe ser de esta cuenta y región).
+#   - Solo actúa sobre nombres que empiezan por "perxia-reto03" y verifica el tag proyecto=perxia-reto03.
+#   - El proveedor OIDC de GitHub SOLO se borra si tiene el tag del reto y el estado no dice que ya existía.
 set -euo pipefail
 # shellcheck source=infra/cloudshell/00-variables.sh
 source "$(dirname "$0")/00-variables.sh"
@@ -21,6 +21,17 @@ exigir_prefijo() {
   esac
 }
 for nombre in "$SVC" "$POOL_NAME" "$CLIENT_NAME" "$ROLE" "$ROLE_POLICY"; do exigir_prefijo "$nombre"; done
+
+cuenta_estado="$(leer_estado CUENTA)"
+region_estado="$(leer_estado REGION)"
+if [ -n "$cuenta_estado" ] && [ "$cuenta_estado" != "$ACCOUNT_ID" ]; then
+  echo "ABORTADO: estado.json es de la cuenta $cuenta_estado, no de $ACCOUNT_ID." >&2; exit 1
+fi
+if [ -n "$region_estado" ] && [ "$region_estado" != "$REGION" ]; then
+  echo "ABORTADO: estado.json es de la región $region_estado, no de $REGION." >&2; exit 1
+fi
+echo "Inventario registrado:"
+jq -c 'del(.ACTUALIZADO)' "$ESTADO"
 
 correr() {
   if [ "$EJECUTAR" = "si" ]; then
@@ -40,7 +51,13 @@ fi
 # 1) Lightsail Container Service (borra también sus imágenes y despliegues)
 echo "── 1) Lightsail: $SVC"
 if aws lightsail get-container-services --region "$REGION" --service-name "$SVC" >/dev/null 2>&1; then
-  correr aws lightsail delete-container-service --region "$REGION" --service-name "$SVC"
+  tag="$(aws lightsail get-container-services --region "$REGION" --service-name "$SVC" \
+    --query "containerServices[0].tags[?key=='proyecto'].value | [0]" --output text)"
+  if [ "$tag" = "$PROYECTO" ]; then
+    correr aws lightsail delete-container-service --region "$REGION" --service-name "$SVC"
+  else
+    echo "   existe pero sin tag proyecto=$PROYECTO: NO se borra (revísalo a mano)."
+  fi
 else
   echo "   no existe"
 fi
@@ -83,7 +100,10 @@ echo "── 4) IAM: proveedor OIDC de GitHub"
 if aws iam get-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN" >/dev/null 2>&1; then
   tag="$(aws iam list-open-id-connect-provider-tags --open-id-connect-provider-arn "$OIDC_ARN" \
     --query "Tags[?Key=='proyecto'].Value | [0]" --output text)"
-  if [ "$tag" = "$PROYECTO" ]; then
+  if [ "$(leer_estado OIDC_CREADO)" = "no" ]; then
+    echo "   ya existía antes del reto (estado OIDC_CREADO=no): se CONSERVA."
+  elif [ "$tag" = "$PROYECTO" ]; then
+    [ -n "$(leer_estado OIDC_CREADO)" ] || echo "   aviso: sin estado local; se decide solo por el tag proyecto=$PROYECTO."
     correr aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "$OIDC_ARN"
   else
     echo "   existe pero NO es del reto (sin tag proyecto=$PROYECTO): se CONSERVA."
@@ -92,8 +112,8 @@ else
   echo "   no existe"
 fi
 
-# 5) Archivos locales de CloudShell
-echo "── 5) CloudShell: $WORKDIR"
+# 5) Archivos locales (estado y temporales en infra/.generated/)
+echo "── 5) Local: $WORKDIR"
 if [ "$EJECUTAR" = "si" ]; then
   rm -rf "$WORKDIR"
   echo "   borrado"

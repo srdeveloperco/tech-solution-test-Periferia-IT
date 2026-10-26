@@ -3,14 +3,14 @@
 # por si GitHub Actions no está disponible. Ejecútalo desde una copia del repo:
 #   git clone https://github.com/srdeveloperco/tech-solution-test-Periferia-IT.git ~/perxia-reto03/repo
 #   cd ~/perxia-reto03/repo && git checkout claude/compassionate-bardeen-ip65go
-#   REGION=us-east-2 bash infra/cloudshell/04-deploy-manual.sh
+#   bash infra/cloudshell/04-deploy-manual.sh      (región por defecto us-east-2)
 set -euo pipefail
 # shellcheck source=infra/cloudshell/00-variables.sh
 source "$(dirname "$0")/00-variables.sh"
-RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
-
-: "${POOL_ID:?Falta POOL_ID: corre primero 02-cognito.sh}"
-: "${CLIENT_ID:?Falta CLIENT_ID: corre primero 02-cognito.sh}"
+POOL_ID="$(leer_estado POOL_ID)"
+CLIENT_ID="$(leer_estado CLIENT_ID)"
+: "${POOL_ID:?Falta POOL_ID en infra/.generated/estado.json: corre primero 02-cognito.sh}"
+: "${CLIENT_ID:?Falta CLIENT_ID en infra/.generated/estado.json: corre primero 02-cognito.sh}"
 
 # 1) lightsailctl (plugin oficial para subir imágenes a Lightsail)
 if ! command -v lightsailctl >/dev/null 2>&1; then
@@ -43,7 +43,11 @@ jq '.app.image = $ENV.IMAGEN
   | .app.environment.COGNITO_REGION = $ENV.REGION
   | .app.environment.COGNITO_USER_POOL_ID = $ENV.POOL_ID
   | .app.environment.COGNITO_CLIENT_ID = $ENV.CLIENT_ID
-  | .app.environment.PRESUPUESTO_USD = ($ENV.PRESUPUESTO_USD // "10")' \
+  | .app.environment.PRESUPUESTO_USD = ($ENV.PRESUPUESTO_USD // "10")
+  | .app.environment.LLM_MODELO_ROUTER = ($ENV.LLM_MODELO_ROUTER // .app.environment.LLM_MODELO_ROUTER)
+  | .app.environment.LLM_MODELO_OPERADOR = ($ENV.LLM_MODELO_OPERADOR // .app.environment.LLM_MODELO_OPERADOR)
+  | .app.environment.LLM_MODELO_ASESOR = ($ENV.LLM_MODELO_ASESOR // .app.environment.LLM_MODELO_ASESOR)
+  | .app.environment.LLM_MODELO_CONVERSADOR = ($ENV.LLM_MODELO_CONVERSADOR // .app.environment.LLM_MODELO_CONVERSADOR)' \
   "$RAIZ/infra/lightsail/containers.template.json" >"$WORKDIR/containers.json"
 unset ANTHROPIC_API_KEY
 
@@ -72,4 +76,5 @@ done
 URL="$(aws lightsail get-container-services --region "$REGION" --service-name "$SVC" --query 'containerServices[0].url' --output text)"
 curl -fsS "${URL%/}/api/health" && echo
 echo "/api/casos sin token → $(curl -s -o /dev/null -w '%{http_code}' "${URL%/}/api/casos") (esperado 401)"
+guardar_estado URL "$URL"
 echo "Listo: $URL"
