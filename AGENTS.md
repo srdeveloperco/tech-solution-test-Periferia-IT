@@ -23,7 +23,7 @@ fixtures/reto-03/        insumos de Periferia. SOLO LECTURA.
 out/                     generado en ejecución (control.csv, log.jsonl, sap/, evidencias). No versionado.
 modulo/                  bonus: agente empaquetado (generado desde las fuentes, no se edita a mano)
 demo.ts                  corre los 6 casos llamando herramientas, sin modelo
-infra/ + INFRA.md        despliegue AWS (Lightsail) desde CloudShell, inventario y borrado
+infra/ + INFRA.md        despliegue AWS (Lightsail + Cognito) desde PowerShell local o CloudShell, inventario y borrado
 ```
 
 ## Comandos
@@ -87,5 +87,5 @@ Un cambio de reglas de negocio no debe tocar el servidor.
 ## Seguridad AWS
 
 La cuenta AWS es de **producción** con otros productos. Ningún agente ejecuta borrados en AWS:
-el despliegue y el borrado los hace un humano en CloudShell siguiendo `INFRA.md`.
+el despliegue y el borrado los hace un humano (PowerShell local con perfil `juan` o CloudShell) siguiendo `INFRA.md`.
 Todo recurso del proyecto se llama `perxia-reto03-*` y lleva el tag `proyecto=perxia-reto03`.
