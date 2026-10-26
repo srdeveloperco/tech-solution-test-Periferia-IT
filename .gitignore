@@ -147,3 +147,12 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# --- Proyecto OC agente ---
+out/
+dist/
+.env
+.env.*
+!.env.example
+infra/.generated/
+.DS_Store

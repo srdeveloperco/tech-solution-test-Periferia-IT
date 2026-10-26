@@ -1,0 +1,24 @@
+{
+  "name": "@oc/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tools": "./src/tools/index.ts",
+    "./tools/oc": "./src/tools/oc.ts",
+    "./sap": "./src/sap/index.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/main.ts",
+    "start": "bun src/main.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "@oc/contracts": "workspace:*",
+    "@oc/domain": "workspace:*",
+    "hono": "4.12.3",
+    "pdf-lib": "1.17.1",
+    "zod": "4.6.7"
+  }
+}
