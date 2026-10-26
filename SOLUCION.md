@@ -72,7 +72,25 @@ Además, **las herramientas no le creen al modelo**. `oc_validar`, `oc_construir
 | Operador | Claude Sonnet 5.5 | Uso de herramientas confiable en cadenas de 5 a 7 pasos y redacción precisa con cifras |
 | Asesor / Conversador | Claude Haiku 5.5 | Respuestas de conocimiento y charla; no ejecutan acciones |
 
-**Costo:** el detalle por caso y la proyección mensual están en [`docs/costos.md`](docs/costos.md).
+**Costo.** Estimación con tamaños medidos de prompts y herramientas (detalle en [`docs/costos.md`](docs/costos.md)):
+
+| Unidad | Costo estimado | Cuántas caben en USD 10 |
+|---|---|---|
+| Interacción típica (procesar o confirmar) | ≈ USD 0,03 | ≈ 330 |
+| Caso completo (`sol-001`: 6 llamadas, 5 herramientas) | ≈ USD 0,05 | ≈ 200 |
+| Turno de confirmación | ≈ USD 0,017 | ≈ 590 |
+| Pregunta al asesor (Haiku) | ≈ USD 0,001 | ≈ 10.000 |
+| Demo de los 6 casos con 3 confirmaciones | ≈ USD 0,30 | — |
+
+Sin caché, el caso completo costaría unas 2,5 veces más. Con Sonnet para todo, unos USD 0,07–0,08 por OC. Escenario mensual: 300 OC ≈ USD 17–20; 1.000 OC ≈ USD 57–70.
+
+**Capacidades de la API de Anthropic usadas:**
+- Prompt caching del prefijo estable (herramientas, prompt, voz y conocimiento).
+- Streaming con `texto_delta` en vivo.
+- Salida estructurada (JSON Schema) en el router.
+- Esfuerzo por agente: `medium` en el operador, `low` en el resto.
+- `tool_choice: none` para cerrar con la pregunta de confirmación.
+- El operador reinicia el contexto en cada turno con una memoria compacta de la sesión, así el costo no crece con la conversación.
 
 **Controles de costo:**
 - Prompt caching del system prompt, las herramientas y el conocimiento.
