@@ -90,9 +90,7 @@ export const Paquete = z.object({
       texto: z.string(),
     })
     .nullable(),
-  aprobacion: z
-    .object({ de: z.string(), fecha: z.string(), aprobado: z.boolean(), texto: z.string() })
-    .nullable(),
+  aprobacion: z.object({ de: z.string(), fecha: z.string(), aprobado: z.boolean(), texto: z.string() }).nullable(),
   factura: z.object({ numero: z.string(), fecha: z.string(), total: z.number() }).nullable(),
   /** Adjuntos que no llegaron (por nombre). Vacío si el paquete está completo. */
   faltantes: z.array(z.string()),
@@ -175,9 +173,7 @@ export const OrdenCompra = z.object({
       }),
     )
     .min(1),
-  excepciones: z.array(
-    z.object({ codigo: z.string(), detalle: z.string(), confirmado_por: z.string().nullable() }),
-  ),
+  excepciones: z.array(z.object({ codigo: z.string(), detalle: z.string(), confirmado_por: z.string().nullable() })),
 })
 export type OrdenCompra = z.infer<typeof OrdenCompra>
 
