@@ -28,7 +28,7 @@ La analista administrativa digita a mano cada orden de compra en SAP desde un co
 └──────────────┬───────────────────────────────────────────────┬───────────────────────────────────────┘
                │ importa reglas puras                          │ lee / escribe
       packages/domain (zod, RC1–RC10, sin IO)      fixtures/ (solo lectura) · out/ (control.csv, log.jsonl,
-      packages/contracts (tipos web↔backend)       sap/, <caso>/aprobacion.{txt,pdf}, trazabilidad.json, observatorio.db)
+      packages/contracts (tipos web↔backend)       sap/, <caso>/aprobacion.{txt,pdf}, trazabilidad.json, oc.db)
 ```
 
 **Dónde vive cada cosa** (la separación que pide el PRD 6.5):
@@ -201,7 +201,7 @@ Queda abierta la decisión de política (tolerar con marca o rechazar), que es d
 | Las herramientas recalculan desde las fuentes y verifican el payload | Confiar en los argumentos que arma el modelo | Cierra el riesgo de que el modelo "arregle" un monto (PRD §10). El costo es leer los archivos varias veces, despreciable aquí |
 | Confirmación impuesta por el servidor (compuerta + última llamada sin herramientas) | Confiar solo en el prompt | El PRD pide que el diseño haga innecesaria la regla. Un prompt se puede ignorar; la compuerta no |
 | Reglas de voz compartidas en cada especialista | Un agente "redactor" que reescribe la respuesta final | Un redactor puede alterar cifras (rompe CA2) y suma latencia y costo |
-| Observer propio sobre SQLite (`bun:sqlite`) | LangChain, Langfuse o DynamoDB | Cero dependencias y cero recursos AWS extra. Guarda exactamente lo que se necesita para mantener y optimizar prompts. En producción iría a una base gestionada |
+| Una base SQLite (`bun:sqlite`, `out/oc.db`) con migraciones versionadas para conversaciones, auditoría de confirmaciones y observatorio ([modelo de datos](docs/modelo-datos.md)) | LangChain, Langfuse, DynamoDB o archivos JSON por sesión | Cero dependencias y cero recursos AWS extra. Guarda exactamente lo que se necesita para mantener y optimizar prompts. En producción iría a una base gestionada |
 | Amazon Lightsail Container Service (1 recurso, HTTPS incluido) | S3 + API Gateway + Lambda + DynamoDB, App Runner, ECS | API Gateway corta a ~29 s (un turno con 5 herramientas puede pasarse). Lambda no comparte archivos ni sesiones entre instancias, lo que rompe la idempotencia. App Runner cerró a clientes nuevos en 2026. ECS crea VPC y balanceador, demasiados recursos en una cuenta de producción |
 | SSE para eventos en vivo | WebSocket | Unidireccional es suficiente, funciona sobre HTTP/1.1 detrás de cualquier proxy y es más simple de autenticar |
 
@@ -260,7 +260,7 @@ Queda abierta la decisión de política (tolerar con marca o rechazar), que es d
 | Suplantación del correo de aprobación | Validar SPF/DKIM del remitente o mover la aprobación a un flujo firmado (por ejemplo, el workflow de liberación de SAP) |
 | Datos sensibles enviados al proveedor del modelo | Contrato empresarial con retención cero, o modelo en la nube propia (Amazon Bedrock en región). Minimizar lo que se envía: el modelo ve resúmenes, no el maestro completo |
 | Costo descontrolado | Presupuesto global, tope por sesión e iteraciones, router por reglas y límite de gasto en la consola del proveedor |
-| Estado efímero (SQLite y `out/` dentro del contenedor) | En producción: base gestionada (RDS/DynamoDB) para observatorio y control, y S3 versionado con *object lock* para evidencias |
+| Estado efímero (`out/oc.db` y `out/` dentro del contenedor) | En producción: base gestionada (RDS/DynamoDB) para observatorio y control, y S3 versionado con *object lock* para evidencias |
 | Varias instancias asignando números en paralelo | En el real, el número lo asigna SAP. En el mock se usaría una secuencia transaccional en base de datos |
 | Configuración de auth incompleta | El backend **falla cerrado**: si falta la configuración del modo pedido, nadie entra y lo avisa en el arranque; nunca degrada a "abierto" (que solo existe fuera de producción). Rol `admin` por grupo de Cognito para observatorio y costos |
 | Parsers de texto frágiles con documentos reales | Lectura de PDF y Excel con validación de esquema y confirmación humana ante cualquier campo dudoso (mismo principio que RC5) |

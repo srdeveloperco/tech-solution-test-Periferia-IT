@@ -1,18 +1,19 @@
 import { join, resolve } from "node:path"
-import { AlmacenSesiones, cargarConfig, crearOrquestador, crearProveedor } from "./agent"
+import { cargarConfig, crearOrquestador, crearProveedor } from "./agent"
 import { crearAuth, soloAdmin } from "./auth"
 import { crearObservador, rutasObservatorio } from "./observabilidad"
+import { AlmacenSesionesSqlite, abrirBaseDatos } from "./persistencia"
 import { crearApp } from "./server/app"
-import { rutas } from "./tools"
 
 /** Punto de entrada: compone dependencias (proveedor, observador, auth) y levanta el servidor HTTP. */
 const raiz = resolve(import.meta.dir, "..", "..", "..")
 const env = process.env
 const config = cargarConfig(env)
 const llm = crearProveedor(config, env)
-const observador = crearObservador(raiz)
-// Único lugar donde se crea el almacén de sesiones (aquí se conecta la implementación SQLite).
-const almacen = new AlmacenSesiones(() => rutas(raiz).out)
+// Una sola conexión SQLite (<out>/oc.db, migraciones al día) compartida por observatorio y sesiones.
+const db = abrirBaseDatos(raiz)
+const observador = crearObservador(raiz, { db })
+const almacen = new AlmacenSesionesSqlite(db)
 const orquestador = crearOrquestador({ directory: raiz, llm, config, observador, almacen })
 const auth = crearAuth(env)
 

@@ -1,5 +1,5 @@
 /** Observador sobre SQLite (bun:sqlite). Síncrono, un archivo, sin dependencias externas. */
-import { Database } from "bun:sqlite"
+import type { Database } from "bun:sqlite"
 import { createHash, randomUUID } from "node:crypto"
 import type {
   EjecucionHerramientaDto,
@@ -11,7 +11,7 @@ import type {
   ResultadoInteraccion,
   RutaTurno,
 } from "@oc/contracts"
-import { ESQUEMA, SELECT_INTERACCION } from "./esquema"
+import { SELECT_INTERACCION } from "./esquema"
 import { aJson, deJson, textoSeguro } from "./redactar"
 import type { Observador, PermisoGasto } from "./tipos"
 
@@ -157,28 +157,28 @@ function aHerramienta(f: FilaHerramienta): EjecucionHerramientaDto {
 const numero = (n: number) => (Number.isFinite(n) ? n : 0)
 
 export class ObservadorSqlite implements Observador {
-  private readonly db: Database
-
+  /** Recibe la conexión compartida ya migrada (ver persistencia/abrirBaseDatos). */
   constructor(
-    archivo: string,
+    private readonly db: Database,
     private readonly limiteUsd: number,
-  ) {
-    this.db = new Database(archivo, { create: true, strict: true })
-    this.db.run("PRAGMA journal_mode = WAL")
-    this.db.run("PRAGMA synchronous = NORMAL")
-    this.db.run("PRAGMA busy_timeout = 3000")
-    this.db.exec(ESQUEMA)
-  }
+  ) {}
 
+  /** Escritura best-effort: un fallo de la base se registra en consola y no tumba el turno. */
   private ejecutar(sql: string, params: Params): void {
-    this.db.query<unknown, Params>(sql).run(params)
+    try {
+      this.db.query<unknown, Params>(sql).run(params)
+    } catch (e) {
+      console.error(`[observatorio] no se pudo escribir: ${e instanceof Error ? e.message : String(e)}`)
+    }
   }
 
   iniciarInteraccion(d: { sessionId: string; usuario: string | null; mensaje: string }): string {
     const id = randomUUID()
     this.ejecutar(
-      `INSERT INTO interacciones (id, session_id, usuario, ts, mensaje_usuario)
-       VALUES ($id, $session_id, $usuario, $ts, $mensaje)`,
+      `INSERT INTO interacciones (id, session_id, usuario, ts, mensaje_usuario, conversacion_id, usuario_id)
+       VALUES ($id, $session_id, $usuario, $ts, $mensaje,
+         (SELECT id FROM conversaciones WHERE id = $session_id),
+         (SELECT id FROM usuarios WHERE id = lower($usuario)))`,
       { id, session_id: d.sessionId, usuario: d.usuario, ts: ahora(), mensaje: textoSeguro(d.mensaje) },
     )
     return id
@@ -275,8 +275,17 @@ export class ObservadorSqlite implements Observador {
     }
   }
 
+  /** Falla cerrado: si no se puede leer el gasto, no se autoriza la llamada al modelo. */
   puedeGastar(estimadoUsd: number): PermisoGasto {
-    const p = this.presupuesto()
+    let p: PresupuestoDto
+    try {
+      p = this.presupuesto()
+    } catch {
+      return {
+        permitido: false,
+        motivo: "No pude verificar el presupuesto de la cuenta de prueba. Intenta en un momento.",
+      }
+    }
     const limite = `USD ${p.limiteUsd.toFixed(2)}`
     if (p.bloqueado) {
       return { permitido: false, motivo: `Se alcanzó el límite de gasto de la cuenta de prueba (${limite}).` }
