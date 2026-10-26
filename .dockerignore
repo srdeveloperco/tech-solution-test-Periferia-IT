@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+out
+.env
+.env.*
+!.env.example
+.git
+.github
+.claude
+infra
+*.log
+.DS_Store

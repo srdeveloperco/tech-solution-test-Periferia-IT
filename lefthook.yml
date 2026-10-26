@@ -1,0 +1,25 @@
+# Git hooks locales (lefthook). Se instalan solos con `bun install` (script "prepare").
+# Saltar en una emergencia: LEFTHOOK=0 git commit ...
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome
+      glob: "*.{ts,tsx,mts,cts,js,jsx,json,jsonc,css}"
+      run: node_modules/.bin/biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    - name: fixtures-inmutables
+      glob: "fixtures/**"
+      run: bun scripts/harness/check-fixtures.ts
+    - name: secretos
+      run: bun scripts/harness/scan-secrets.ts {staged_files}
+
+commit-msg:
+  jobs:
+    - name: conventional-commits
+      run: bun scripts/harness/commit-msg.ts {1}
+
+pre-push:
+  jobs:
+    - name: verificacion
+      run: bun run typecheck && bun run boundaries && bun run test && bun run demo.ts
