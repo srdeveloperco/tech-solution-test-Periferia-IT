@@ -427,6 +427,7 @@ cat > $WORKDIR/trust-policy.json <<EOF
       "StringEquals": {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
         "token.actions.githubusercontent.com:sub": [
+          "repo:srdeveloperco@123211571/tech-solution-test-Periferia-IT@1434693415:environment:aws-demo",
           "repo:srdeveloperco/tech-solution-test-Periferia-IT:environment:aws-demo",
           "repo:srdeveloperco/tech-solution-test-periferia-it:environment:aws-demo"
         ]
