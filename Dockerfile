@@ -38,7 +38,9 @@ COPY fixtures ./fixtures
 COPY --from=build /app/apps/web/dist ./apps/web/dist
 
 # out/ (control.csv, log.jsonl, sap/, evidencias, observatorio.db) es efímero dentro del contenedor.
-RUN mkdir -p /app/out && chown -R bun:bun /app/out
+# Lectura garantizada para el usuario sin privilegios aunque el contexto traiga permisos restrictivos.
+RUN chmod -R a+rX /app/apps /app/packages /app/fixtures \
+ && mkdir -p /app/out && chown -R bun:bun /app/out
 USER bun
 
 EXPOSE 8080
