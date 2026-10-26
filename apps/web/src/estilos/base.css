@@ -1,0 +1,239 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#raiz {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fuente);
+  font-size: var(--t-15);
+  line-height: 1.5;
+  color: var(--tinta);
+  background: var(--papel);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--foco) 24%, transparent);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  letter-spacing: -0.01em;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Botones: una sola familia de formas ── */
+
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: var(--t-14);
+  font-weight: 500;
+  white-space: nowrap;
+  background: transparent;
+  transition:
+    background-color var(--t-rapida) var(--curva),
+    border-color var(--t-rapida) var(--curva),
+    color var(--t-rapida) var(--curva),
+    transform var(--t-rapida) var(--curva),
+    opacity var(--t-rapida) var(--curva);
+}
+
+.boton:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.boton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.boton-primario {
+  background: var(--tinta);
+  color: var(--tinta-inversa);
+}
+
+.boton-primario:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--tinta) 86%, var(--superficie));
+}
+
+.boton-secundario {
+  border-color: var(--linea-fuerte);
+  background: var(--hoja);
+}
+
+.boton-secundario:hover:not(:disabled) {
+  background: var(--relleno);
+}
+
+.boton-fantasma {
+  color: var(--tinta-2);
+}
+
+.boton-fantasma:hover:not(:disabled) {
+  background: var(--relleno);
+  color: var(--tinta);
+}
+
+.boton-chico {
+  height: 28px;
+  padding: 0 10px;
+  font-size: var(--t-13);
+  border-radius: var(--radio-s);
+}
+
+/* ── Etiquetas de estado (icono + texto, nunca solo color) ── */
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: var(--t-12);
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--relleno);
+  color: var(--tinta-2);
+}
+
+.etiqueta svg {
+  flex: none;
+}
+
+.etiqueta[data-tono="verde"] {
+  background: var(--verde-fondo);
+  color: var(--verde-tinta);
+}
+
+.etiqueta[data-tono="ambar"] {
+  background: var(--ambar-fondo);
+  color: var(--ambar-tinta);
+}
+
+.etiqueta[data-tono="rojo"] {
+  background: var(--rojo-fondo);
+  color: var(--rojo-tinta);
+}
+
+/* ── Movimiento: transmite estado, nada decorativo ── */
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes asentar {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.girando {
+  animation: girar 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

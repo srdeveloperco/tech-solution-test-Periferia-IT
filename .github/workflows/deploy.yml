@@ -1,0 +1,187 @@
+name: Deploy
+
+# CI → imagen → Lightsail. El job de despliegue se salta hasta que exista la infraestructura
+# (variable AWS_ROLE_ARN definida en el repo). Ver INFRA.md.
+on:
+  push:
+    branches:
+      - main
+      - claude/compassionate-bardeen-ip65go
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      omitir_docker: true
+
+  desplegar:
+    name: Desplegar en Lightsail
+    needs: ci
+    if: ${{ vars.AWS_ROLE_ARN != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Nunca cancelar un despliegue a medias; los siguientes esperan en cola.
+    concurrency:
+      group: deploy-aws-lightsail
+      cancel-in-progress: false
+    permissions:
+      id-token: write # OIDC: credenciales temporales, sin llaves de AWS guardadas
+      contents: read
+    environment:
+      name: aws-demo
+      url: ${{ steps.desplegar.outputs.url }}
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      SVC: ${{ vars.LIGHTSAIL_SERVICE || 'perxia-reto03-oc-agent' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Diagnóstico: imprime solo los claims públicos de la identidad OIDC (nunca el token),
+      # para comparar el "sub" con la trust policy del rol si AWS rechaza la identidad.
+      - name: Identidad OIDC (claims públicos)
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          python3 - "$TOKEN" <<'PY'
+          import base64, json, sys
+          carga = sys.argv[1].split(".")[1]
+          carga += "=" * (-len(carga) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(carga))
+          print(json.dumps({k: claims.get(k) for k in ("sub", "aud", "iss", "repository", "environment")}, indent=2))
+          PY
+
+      - name: Credenciales AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-perxia-reto03-${{ github.run_id }}
+
+      - name: Instalar lightsailctl
+        run: |
+          sudo curl -fsSL "https://s3.us-west-2.amazonaws.com/lightsailctl/latest/linux-amd64/lightsailctl" \
+            -o /usr/local/bin/lightsailctl
+          sudo chmod +x /usr/local/bin/lightsailctl
+          lightsailctl --version || true
+
+      - name: Construir imagen
+        run: docker build --platform linux/amd64 -t "$SVC:${GITHUB_SHA::7}" .
+
+      - name: Subir imagen a Lightsail
+        id: push
+        run: |
+          salida="$(aws lightsail push-container-image --service-name "$SVC" --label app --image "$SVC:${GITHUB_SHA::7}" 2>&1)"
+          echo "$salida" | tail -3
+          imagen="$(echo "$salida" | grep -oE ":${SVC}\.app\.[0-9]+" | tail -1)"
+          if [ -z "$imagen" ]; then echo "::error::No se encontró la referencia de la imagen"; exit 1; fi
+          echo "imagen=$imagen" >> "$GITHUB_OUTPUT"
+
+      - name: Desplegar
+        id: desplegar
+        env:
+          IMAGEN: ${{ steps.push.outputs.imagen }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'anthropic' }}
+          COGNITO_REGION: ${{ vars.COGNITO_REGION || vars.AWS_REGION }}
+          COGNITO_USER_POOL_ID: ${{ vars.COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ vars.COGNITO_CLIENT_ID }}
+          PRESUPUESTO_USD: ${{ vars.PRESUPUESTO_USD || '10' }}
+          # Modelos por agente: si la variable no existe, se usa el valor de la plantilla.
+          LLM_MODELO_ROUTER: ${{ vars.LLM_MODELO_ROUTER }}
+          LLM_MODELO_OPERADOR: ${{ vars.LLM_MODELO_OPERADOR }}
+          LLM_MODELO_ASESOR: ${{ vars.LLM_MODELO_ASESOR }}
+          LLM_MODELO_CONVERSADOR: ${{ vars.LLM_MODELO_CONVERSADOR }}
+        run: |
+          # Falla cerrado: sin Cognito configurado no se despliega (el link nunca queda abierto).
+          for v in COGNITO_REGION COGNITO_USER_POOL_ID COGNITO_CLIENT_ID ANTHROPIC_API_KEY; do
+            if [ -z "${!v}" ]; then echo "::error::Falta $v (ver INFRA.md §7)"; exit 1; fi
+          done
+          umask 077
+          contenedores="$RUNNER_TEMP/containers.json"
+          # Los valores salen de $ENV dentro de jq: la clave nunca aparece en la línea de comandos ni en el log.
+          jq '.app.image = $ENV.IMAGEN
+            | .app.environment.ANTHROPIC_API_KEY = $ENV.ANTHROPIC_API_KEY
+            | .app.environment.LLM_PROVIDER = $ENV.LLM_PROVIDER
+            | .app.environment.AUTH_MODO = "cognito"
+            | .app.environment.NODE_ENV = "production"
+            | .app.environment.COGNITO_REGION = $ENV.COGNITO_REGION
+            | .app.environment.COGNITO_USER_POOL_ID = $ENV.COGNITO_USER_POOL_ID
+            | .app.environment.COGNITO_CLIENT_ID = $ENV.COGNITO_CLIENT_ID
+            | .app.environment.PRESUPUESTO_USD = $ENV.PRESUPUESTO_USD
+            | reduce ("LLM_MODELO_ROUTER", "LLM_MODELO_OPERADOR", "LLM_MODELO_ASESOR", "LLM_MODELO_CONVERSADOR") as $k
+                (.; if ($ENV[$k] // "") != "" then .app.environment[$k] = $ENV[$k] else . end)' \
+            infra/lightsail/containers.template.json > "$contenedores"
+
+          # --query: la respuesta completa incluye las variables de entorno; solo pedimos la versión.
+          version="$(aws lightsail create-container-service-deployment --service-name "$SVC" \
+            --containers "file://$contenedores" \
+            --public-endpoint file://infra/lightsail/endpoint.json \
+            --query 'containerService.nextDeployment.version' --output text)"
+          rm -f "$contenedores"
+          echo "Despliegue versión $version en curso"
+
+          for _ in $(seq 1 90); do
+            read -r actual estado siguiente <<< "$(aws lightsail get-container-services --service-name "$SVC" \
+              --query 'containerServices[0].[currentDeployment.version, currentDeployment.state, nextDeployment.state]' \
+              --output text)"
+            echo "actual=$actual estado=$estado siguiente=$siguiente"
+            if [ "$actual" = "$version" ] && [ "$estado" = "ACTIVE" ]; then break; fi
+            if [ "$siguiente" = "FAILED" ] || { [ "$siguiente" = "None" ] && [ "$actual" != "$version" ]; }; then
+              echo "::error::El despliegue $version falló. Logs: aws lightsail get-container-log --service-name $SVC --container-name app"
+              exit 1
+            fi
+            sleep 10
+          done
+          if [ "$actual" != "$version" ] || [ "$estado" != "ACTIVE" ]; then
+            echo "::error::Tiempo agotado esperando el despliegue $version"
+            exit 1
+          fi
+
+          url="$(aws lightsail get-container-services --service-name "$SVC" --query 'containerServices[0].url' --output text)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Prueba de humo (salud, acceso cerrado y login)
+        env:
+          URL: ${{ steps.desplegar.outputs.url }}
+          TEST_USER: ${{ vars.TEST_USER || 'evaluador@periferia-ficticia.com' }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+        run: |
+          base="${URL%/}"
+          ok=""
+          for i in $(seq 1 12); do
+            if curl -fsS "$base/api/health"; then echo; ok="si"; break; fi
+            echo "Intento $i sin respuesta, reintentando..."
+            sleep 5
+          done
+          [ -n "$ok" ] || { echo "::error::/api/health no respondió"; exit 1; }
+
+          codigo="$(curl -s -o /dev/null -w '%{http_code}' "$base/api/casos")"
+          echo "/api/casos sin token → $codigo"
+          [ "$codigo" = "401" ] || { echo "::error::/api/casos sin token debe responder 401 (respondió $codigo)"; exit 1; }
+
+          if [ -n "$TEST_PASSWORD" ]; then
+            cuerpo="$(jq -n --arg u "$TEST_USER" --arg c "$TEST_PASSWORD" '{usuario: $u, clave: $c}')"
+            codigo="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/api/auth/login" \
+              -H 'content-type: application/json' -d "$cuerpo")"
+            echo "login de $TEST_USER → $codigo"
+            [ "$codigo" = "200" ] || { echo "::error::El login del usuario de prueba falló ($codigo)"; exit 1; }
+          else
+            echo "::notice::Sin secreto TEST_PASSWORD: se omite la prueba de login."
+          fi
+
+      - name: Resumen
+        if: always()
+        env:
+          URL: ${{ steps.desplegar.outputs.url }}
+        run: |
+          {
+            echo "### Despliegue Lightsail"
+            echo ""
+            echo "- Servicio: \`$SVC\` (región \`$AWS_REGION\`)"
+            echo "- Commit: \`${GITHUB_SHA::7}\`"
+            echo "- URL: ${URL:-no disponible}"
+          } >> "$GITHUB_STEP_SUMMARY"

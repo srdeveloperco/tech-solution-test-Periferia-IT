@@ -1,0 +1,102 @@
+/*
+ * Escena: una analista de compras en su portátil, de día, entre correos, revisando cifras antes de crear una orden.
+ * Tema claro por defecto (luz de oficina), oscuro automático. Neutros tintados hacia papel cálido; el color
+ * solo comunica estado: ámbar = necesita confirmación, verde = creada, rojo = bloqueo.
+ */
+:root {
+  color-scheme: light dark;
+
+  --fuente: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+  --fuente-titulo: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --papel: oklch(0.972 0.005 85);
+  --superficie: oklch(0.992 0.003 85);
+  --hoja: oklch(0.997 0.002 85);
+  --relleno: oklch(0.953 0.005 85);
+  --relleno-2: oklch(0.928 0.006 85);
+  --linea: oklch(0.906 0.006 85);
+  --linea-fuerte: oklch(0.858 0.008 85);
+  --tinta: oklch(0.235 0.012 75);
+  --tinta-2: oklch(0.43 0.01 75);
+  --tinta-3: oklch(0.575 0.008 75);
+  --tinta-inversa: oklch(0.985 0.004 85);
+
+  --ambar: oklch(0.74 0.15 72);
+  --ambar-tinta: oklch(0.46 0.11 62);
+  --ambar-fondo: oklch(0.966 0.032 85);
+  --ambar-linea: oklch(0.875 0.075 80);
+
+  --verde: oklch(0.6 0.13 152);
+  --verde-tinta: oklch(0.42 0.09 152);
+  --verde-fondo: oklch(0.963 0.028 152);
+  --verde-linea: oklch(0.86 0.06 152);
+
+  --rojo: oklch(0.585 0.18 28);
+  --rojo-tinta: oklch(0.47 0.15 28);
+  --rojo-fondo: oklch(0.963 0.024 28);
+  --rojo-linea: oklch(0.87 0.06 28);
+
+  --foco: oklch(0.6 0.13 250);
+
+  --sombra-hoja:
+    0 1px 1px oklch(0.25 0.02 75 / 0.04), 0 2px 6px oklch(0.25 0.02 75 / 0.04),
+    0 14px 32px -18px oklch(0.25 0.02 75 / 0.18);
+  --sombra-flotante: 0 1px 2px oklch(0.25 0.02 75 / 0.06), 0 18px 44px -22px oklch(0.25 0.02 75 / 0.3);
+
+  --radio-s: 8px;
+  --radio-m: 12px;
+  --radio-l: 16px;
+  --radio-xl: 22px;
+
+  --curva: cubic-bezier(0.25, 1, 0.5, 1);
+  --curva-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-rapida: 160ms;
+  --t-media: 220ms;
+
+  --t-11: 0.6875rem;
+  --t-12: 0.75rem;
+  --t-13: 0.8125rem;
+  --t-14: 0.875rem;
+  --t-15: 0.9375rem;
+  --t-17: 1.0625rem;
+  --t-20: 1.25rem;
+  --t-24: 1.5rem;
+  --t-30: 1.875rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --papel: oklch(0.172 0.006 75);
+    --superficie: oklch(0.2 0.006 75);
+    --hoja: oklch(0.228 0.007 75);
+    --relleno: oklch(0.255 0.007 75);
+    --relleno-2: oklch(0.295 0.007 75);
+    --linea: oklch(0.29 0.006 75);
+    --linea-fuerte: oklch(0.355 0.007 75);
+    --tinta: oklch(0.94 0.006 85);
+    --tinta-2: oklch(0.765 0.008 85);
+    --tinta-3: oklch(0.6 0.008 85);
+    --tinta-inversa: oklch(0.2 0.006 75);
+
+    --ambar: oklch(0.8 0.14 78);
+    --ambar-tinta: oklch(0.86 0.11 80);
+    --ambar-fondo: oklch(0.262 0.04 70);
+    --ambar-linea: oklch(0.42 0.075 72);
+
+    --verde: oklch(0.72 0.14 152);
+    --verde-tinta: oklch(0.82 0.11 152);
+    --verde-fondo: oklch(0.252 0.035 152);
+    --verde-linea: oklch(0.4 0.065 152);
+
+    --rojo: oklch(0.7 0.16 28);
+    --rojo-tinta: oklch(0.8 0.12 28);
+    --rojo-fondo: oklch(0.262 0.04 28);
+    --rojo-linea: oklch(0.43 0.085 28);
+
+    --foco: oklch(0.72 0.12 250);
+
+    --sombra-hoja: 0 1px 1px oklch(0.05 0.01 75 / 0.3), 0 14px 32px -18px oklch(0.05 0.01 75 / 0.6);
+    --sombra-flotante: 0 1px 2px oklch(0.05 0.01 75 / 0.4), 0 18px 44px -22px oklch(0.05 0.01 75 / 0.7);
+  }
+}

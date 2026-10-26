@@ -1,0 +1,32 @@
+{
+  "name": "oc-agente-sap",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter './apps/*' dev",
+    "build": "bun run --filter @oc/web build",
+    "start": "bun apps/backend/src/main.ts",
+    "demo": "bun run demo.ts",
+    "test": "bun scripts/harness/test-si-hay.ts",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "modulo:build": "bun scripts/modulo.ts",
+    "modulo:check": "bun scripts/modulo.ts --check",
+    "verify": "bun run lint && bun run boundaries && bun run typecheck && bun run test && bun run demo.ts && bun run modulo:check",
+    "prepare": "lefthook install || true",
+    "boundaries": "bun scripts/check-boundaries.ts",
+    "ci": "biome ci . && bun run boundaries && bun run typecheck && bun run test && bun run demo.ts && bun run modulo:check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@types/bun": "latest",
+    "lefthook": "2.2.2",
+    "typescript": "7.0.2"
+  }
+}

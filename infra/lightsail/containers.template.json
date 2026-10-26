@@ -1,0 +1,26 @@
+{
+  "app": {
+    "image": "",
+    "ports": {
+      "8080": "HTTP"
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "PORT": "8080",
+      "LLM_PROVIDER": "anthropic",
+      "ANTHROPIC_API_KEY": "",
+      "AGENT_MAX_ITERACIONES": "25",
+      "AGENT_MAX_TOKENS_SESION": "300000",
+      "LLM_TIMEOUT_MS": "60000",
+      "PRESUPUESTO_USD": "10",
+      "AUTH_MODO": "cognito",
+      "COGNITO_REGION": "",
+      "COGNITO_USER_POOL_ID": "",
+      "COGNITO_CLIENT_ID": "",
+      "LLM_MODELO_ROUTER": "claude-haiku-5-5",
+      "LLM_MODELO_OPERADOR": "claude-sonnet-5-5",
+      "LLM_MODELO_ASESOR": "claude-haiku-5-5",
+      "LLM_MODELO_CONVERSADOR": "claude-haiku-5-5"
+    }
+  }
+}

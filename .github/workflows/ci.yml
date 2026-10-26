@@ -1,0 +1,76 @@
+name: CI
+
+# En las ramas que despliegan (main y la rama del reto) este workflow lo invoca Deploy (workflow_call),
+# así no corre dos veces por push.
+on:
+  push:
+    branches-ignore:
+      - main
+      - claude/compassionate-bardeen-ip65go
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      omitir_docker:
+        description: "Deploy construye su propia imagen; no hace falta construirla aquí."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Lint · límites · tipos · tests · demo · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ci-verificar-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Instalar dependencias
+        run: bun install --frozen-lockfile
+
+      - name: Lint y formato (Biome)
+        run: bunx biome ci .
+
+      - name: Límites de capas
+        run: bun run boundaries
+
+      - name: Tipos
+        run: bun run typecheck
+
+      - name: Tests (si existen)
+        run: bun run test
+
+      - name: Demo sin modelo (6 casos)
+        run: bun run demo.ts
+
+      - name: Módulo reutilizable sincronizado
+        run: bun run modulo:check
+
+      - name: Build del front
+        run: bun run build
+
+  docker:
+    name: Imagen Docker (sin push)
+    needs: verificar
+    if: ${{ !inputs.omitir_docker }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

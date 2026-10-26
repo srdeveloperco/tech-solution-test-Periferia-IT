@@ -1,0 +1,117 @@
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px 16px;
+  background: var(--papel);
+}
+
+.login-caja {
+  width: min(360px, 100%);
+  animation: entrar 320ms var(--curva-expo);
+}
+
+.marca-sello-grande {
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+}
+
+.marca-sello-grande::before {
+  inset: 11px 12px 10px 12px;
+}
+
+.marca-sello-grande::after {
+  left: 17px;
+  top: 20px;
+  width: 7px;
+  height: 4px;
+}
+
+.login h1 {
+  margin-top: 20px;
+  font-family: var(--fuente-titulo);
+  font-size: var(--t-24);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.login-sub {
+  margin-top: 4px;
+  font-size: var(--t-15);
+  color: var(--tinta-2);
+}
+
+.login-aviso {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radio-m);
+  background: var(--ambar-fondo);
+  color: var(--ambar-tinta);
+  font-size: var(--t-13);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.campo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo-form > span {
+  font-size: var(--t-13);
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+.campo-form input {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--linea-fuerte);
+  border-radius: var(--radio-m);
+  background: var(--hoja);
+  font-size: var(--t-15);
+  transition:
+    border-color var(--t-rapida) var(--curva),
+    box-shadow var(--t-rapida) var(--curva);
+}
+
+.campo-form input::placeholder {
+  color: var(--tinta-3);
+}
+
+.campo-form input:focus {
+  outline: none;
+  border-color: var(--tinta-3);
+  box-shadow: 0 0 0 4px color-mix(in oklch, var(--tinta) 7%, transparent);
+}
+
+.campo-form input[aria-invalid="true"] {
+  border-color: var(--rojo-linea);
+}
+
+.login-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: var(--t-13);
+  color: var(--rojo-tinta);
+}
+
+.login-error svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.login-boton {
+  height: 42px;
+  margin-top: 6px;
+  font-size: var(--t-15);
+}
