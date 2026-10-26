@@ -2,7 +2,7 @@
 
 Agente conversacional que lee el paquete de compra (solicitud, cotización, aprobación y factura), lo valida contra los maestros con los controles RC1–RC10, arma la orden de compra, genera la evidencia de aprobación y la crea en un SAP simulado. Las excepciones se devuelven al humano: los bloqueos con su acción sugerida y las dudas como confirmación.
 
-- **Link de prueba:** _se publica al desplegar (ver [INFRA.md](INFRA.md))_
+- **Link de prueba:** https://perxia-reto03-oc-agent.6xr8rnrbx4a0e.us-east-2.cs.amazonlightsail.com/ (Amazon Lightsail, us-east-2)
 - **Acceso (login obligatorio, Amazon Cognito):** usuario de prueba `evaluador@periferia-ficticia.com` con rol `admin` (chat, observatorio y costos). La clave se entrega junto con el link (ver "Acceso para evaluadores" en [INFRA.md](INFRA.md)).
 - En local el login también es obligatorio: modo `local` con `AUTH_USUARIO`/`AUTH_CLAVE` del `.env`. El modo `abierto` solo se acepta fuera de producción y si se pide explícitamente.
 - **Planteamiento completo:** [SOLUCION.md](SOLUCION.md) · costos: [docs/costos.md](docs/costos.md) · PRD: [docs/PRD.md](docs/PRD.md)
