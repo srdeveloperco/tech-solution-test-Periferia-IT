@@ -40,6 +40,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Diagnóstico: imprime solo los claims públicos de la identidad OIDC (nunca el token),
+      # para comparar el "sub" con la trust policy del rol si AWS rechaza la identidad.
+      - name: Identidad OIDC (claims públicos)
+        run: |
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          python3 - "$TOKEN" <<'PY'
+          import base64, json, sys
+          carga = sys.argv[1].split(".")[1]
+          carga += "=" * (-len(carga) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(carga))
+          print(json.dumps({k: claims.get(k) for k in ("sub", "aud", "iss", "repository", "environment")}, indent=2))
+          PY
+
       - name: Credenciales AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
