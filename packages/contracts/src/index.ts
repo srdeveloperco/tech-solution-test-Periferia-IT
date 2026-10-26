@@ -112,7 +112,9 @@ export type ConfigAuth = { modo: "cognito" | "local" | "abierto" }
 
 /** POST /api/auth/login (público) */
 export type PeticionLogin = { usuario: string; clave: string }
-export type UsuarioDto = { email: string; nombre: string | null }
+/** "admin" ve todo (chat, observatorio, costos); "analista" solo el chat. Rol = grupo "admin" de Cognito. */
+export type RolUsuario = "admin" | "analista"
+export type UsuarioDto = { email: string; nombre: string | null; rol: RolUsuario }
 export type RespuestaLogin =
   | { ok: true; token: string; expiraEn: number; usuario: UsuarioDto }
   | { ok: false; error: string }

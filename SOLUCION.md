@@ -211,7 +211,7 @@ Queda abierta la decisión de política (tolerar con marca o rechazar), que es d
 | HU-4 Evidencia | Hecho (P0 + P1) | `aprobacion.txt` con sha256 y `aprobacion.pdf` (pdf-lib, determinista) | Firma digital si auditoría la exige |
 | HU-5 Crear OC | Hecho | Mock secuencial desde 4500000001, idempotente; `control.csv` por intento | Adaptador OData real (§6) |
 | HU-6 Errores | Hecho | `{ ok:false, error }` en JSON malformado, monto no numérico o caso inexistente; la sesión sigue | Alertas operativas |
-| Front de chat | Hecho | Conversación, herramientas visibles, confirmación resaltada, lienzo en vivo, login, observatorio | Pruebas de accesibilidad con usuarios |
+| Front de chat | Hecho | Conversación, herramientas visibles, confirmación resaltada, lienzo en vivo, login obligatorio (Cognito), observatorio solo para admin | Pruebas de accesibilidad con usuarios |
 | `demo.ts` | Hecho | 6 casos, idempotencia de sol-001 y confirmación explícita de sol-004 (también sol-005 y sol-006) | — |
 | Bonus `modulo/` | Hecho | `agent.md`, `tools/oc.ts` y `SKILL.md` generados desde las mismas fuentes; la CI falla si divergen | Publicarlo como paquete |
 | Tests automatizados | No hecho | Se priorizó el producto funcional; `demo.ts` cumple como verificación determinista | Tests unitarios de reglas y e2e del ciclo con el proveedor `guion` |
@@ -244,5 +244,5 @@ Queda abierta la decisión de política (tolerar con marca o rechazar), que es d
 | Costo descontrolado | Presupuesto global, tope por sesión e iteraciones, router por reglas y límite de gasto en la consola del proveedor |
 | Estado efímero (SQLite y `out/` dentro del contenedor) | En producción: base gestionada (RDS/DynamoDB) para observatorio y control, y S3 versionado con *object lock* para evidencias |
 | Varias instancias asignando números en paralelo | En el real, el número lo asigna SAP. En el mock se usaría una secuencia transaccional en base de datos |
-| Configuración de auth incompleta abre el link | Alarma en el arranque y `AUTH_MODO=cognito` obligatorio en producción, que falla en lugar de degradar |
+| Configuración de auth incompleta | El backend **falla cerrado**: si falta la configuración del modo pedido, nadie entra y lo avisa en el arranque; nunca degrada a "abierto" (que solo existe fuera de producción). Rol `admin` por grupo de Cognito para observatorio y costos |
 | Parsers de texto frágiles con documentos reales | Lectura de PDF y Excel con validación de esquema y confirmación humana ante cualquier campo dudoso (mismo principio que RC5) |

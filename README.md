@@ -3,7 +3,8 @@
 Agente conversacional que lee el paquete de compra (solicitud, cotización, aprobación y factura), lo valida contra los maestros con los controles RC1–RC10, arma la orden de compra, genera la evidencia de aprobación y la crea en un SAP simulado. Las excepciones se devuelven al humano: los bloqueos con su acción sugerida y las dudas como confirmación.
 
 - **Link de prueba:** _se publica al desplegar (ver [INFRA.md](INFRA.md))_
-- **Acceso:** usuario y contraseña de prueba entregados con el link. En local, sin Cognito, el login queda abierto o con `AUTH_USUARIO`/`AUTH_CLAVE`.
+- **Acceso (login obligatorio, Amazon Cognito):** usuario de prueba `evaluador@periferia-ficticia.com` con rol `admin` (chat, observatorio y costos). La clave se entrega junto con el link (ver "Acceso para evaluadores" en [INFRA.md](INFRA.md)).
+- En local el login también es obligatorio: modo `local` con `AUTH_USUARIO`/`AUTH_CLAVE` del `.env`. El modo `abierto` solo se acepta fuera de producción y si se pide explícitamente.
 - **Planteamiento completo:** [SOLUCION.md](SOLUCION.md) · costos: [docs/costos.md](docs/costos.md) · PRD: [docs/PRD.md](docs/PRD.md)
 
 ## Arranque local (un comando)
@@ -11,7 +12,7 @@ Agente conversacional que lee el paquete de compra (solicitud, cotización, apro
 Requisitos: [Bun](https://bun.sh) 1.4 o superior.
 
 ```bash
-cp .env.example .env      # pon tu ANTHROPIC_API_KEY (sin clave usa el proveedor determinista "guion")
+cp .env.example .env      # pon tu ANTHROPIC_API_KEY y una AUTH_CLAVE (sin clave de modelo usa el proveedor "guion")
 bun install
 bun run dev               # backend en :8080 y front en :5173 (proxy /api → :8080)
 ```
@@ -41,7 +42,7 @@ Procesa los 6 casos de `fixtures/reto-03/solicitudes/` llamando directamente a l
 | `AGENT_MAX_TOKENS_SESION` | Tope de tokens por sesión | 300000 |
 | `PRESUPUESTO_USD` | Gasto máximo global en IA de la cuenta de prueba | 10 |
 | `LLM_TIMEOUT_MS` | Timeout al proveedor | 60000 |
-| `AUTH_MODO` | `cognito`, `local` o `abierto` | según lo configurado |
+| `AUTH_MODO` | `cognito` (producción) o `local`. Si falta la configuración, el login queda cerrado | — |
 | `COGNITO_REGION`, `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID` | Login con Amazon Cognito | — |
 | `AUTH_USUARIO`, `AUTH_CLAVE`, `AUTH_SECRETO` | Login local de respaldo | — |
 | `PORT` | Puerto HTTP | 8080 |
