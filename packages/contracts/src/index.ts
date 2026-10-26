@@ -67,6 +67,8 @@ export type RespuestaChat = {
   confirmacion: { caso: string; confirmaciones: Hallazgo[] } | null
   ruta: RutaTurno | null
   uso: { tokensEntrada: number; tokensSalida: number; iteraciones: number; costoUsd: number }
+  presupuesto: PresupuestoDto
+  interaccionId: string
 }
 
 export type MensajeVisible =
@@ -84,7 +86,12 @@ export type MensajeVisible =
 export type SesionDto = { sessionId: string; mensajes: MensajeVisible[] }
 
 /** GET /api/health */
-export type SaludDto = { ok: true; provider: string; model: string; modelos: Record<Exclude<AgenteId, "conversador">, string> }
+export type SaludDto = {
+  ok: true
+  provider: string
+  model: string
+  modelos: Record<Exclude<AgenteId, "conversador">, string>
+}
 
 /** GET /api/casos */
 export type CasoResumen = {
@@ -97,3 +104,106 @@ export type CasoResumen = {
   estado: ResultadoCrear | null // último resultado registrado en control.csv
   numero_oc: string | null
 }
+
+// ── Autenticación ────────────────────────────────────────────────────────────
+
+/** GET /api/auth/config (público) */
+export type ConfigAuth = { modo: "cognito" | "local" | "abierto" }
+
+/** POST /api/auth/login (público) */
+export type PeticionLogin = { usuario: string; clave: string }
+export type UsuarioDto = { email: string; nombre: string | null }
+export type RespuestaLogin =
+  | { ok: true; token: string; expiraEn: number; usuario: UsuarioDto }
+  | { ok: false; error: string }
+
+/** Todas las rutas /api/* salvo /api/health y /api/auth/* exigen `Authorization: Bearer <token>`. */
+
+// ── Observatorio y presupuesto ───────────────────────────────────────────────
+
+/** GET /api/presupuesto — límite global de gasto en IA de la cuenta de prueba. */
+export type PresupuestoDto = { limiteUsd: number; gastadoUsd: number; restanteUsd: number; bloqueado: boolean }
+
+export type ResultadoInteraccion = "ok" | "error" | "confirmacion" | "bloqueado_presupuesto"
+
+export type InteraccionResumen = {
+  id: string
+  sessionId: string
+  usuario: string | null
+  ts: string
+  mensajeUsuario: string
+  agente: string | null
+  intencion: string | null
+  caso: string | null
+  llamadasLlm: number
+  herramientas: number
+  tokensEntrada: number
+  tokensSalida: number
+  costoUsd: number
+  ms: number
+  resultado: ResultadoInteraccion
+}
+
+export type LlamadaLlmDto = {
+  id: string
+  interaccionId: string
+  ts: string
+  agente: string
+  proveedor: string
+  modelo: string
+  /** Texto completo del system prompt enviado y su hash (versión del prompt). */
+  sistema: string
+  promptHash: string
+  mensajes: unknown
+  herramientas: string[]
+  /** Variables dinámicas con las que se compuso la llamada (caso, pendiente, iteración, etc.). */
+  variables: Record<string, unknown>
+  respuesta: unknown
+  stopReason: string | null
+  tokensEntrada: number
+  tokensSalida: number
+  tokensCacheLectura: number
+  tokensCacheEscritura: number
+  costoUsd: number
+  ms: number
+  error: string | null
+}
+
+export type EjecucionHerramientaDto = {
+  id: string
+  interaccionId: string
+  ts: string
+  agente: string
+  nombre: string
+  args: unknown
+  resultado: unknown
+  ok: boolean
+  ms: number
+}
+
+/** GET /api/observatorio/interacciones/:id */
+export type InteraccionDetalle = InteraccionResumen & {
+  respuesta: string
+  ruta: RutaTurno | null
+  llamadas: LlamadaLlmDto[]
+  herramientasEjecutadas: EjecucionHerramientaDto[]
+}
+
+/** GET /api/observatorio/resumen */
+export type ObservatorioResumen = {
+  presupuesto: PresupuestoDto
+  totales: {
+    interacciones: number
+    llamadasLlm: number
+    tokensEntrada: number
+    tokensSalida: number
+    costoUsd: number
+    costoPromedioInteraccionUsd: number
+    latenciaP50Ms: number
+    latenciaP95Ms: number
+  }
+  porModelo: Array<{ modelo: string; llamadas: number; tokensEntrada: number; tokensSalida: number; costoUsd: number }>
+  porAgente: Array<{ agente: string; llamadas: number; costoUsd: number }>
+  prompts: Array<{ hash: string; agente: string; usos: number; primeraVez: string }>
+}
+/** GET /api/observatorio/interacciones?limite=50 → InteraccionResumen[] */
