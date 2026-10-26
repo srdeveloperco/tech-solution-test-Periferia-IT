@@ -2,10 +2,10 @@ import { z } from "zod"
 import * as oc from "./oc"
 import type { ToolContext, ToolDef } from "./tipos"
 
-export type { ToolContext, ToolDef, ToolResult } from "./tipos"
-export * as oc from "./oc"
-export { rutas, casoValido } from "./rutas"
 export * from "./consultas"
+export * as oc from "./oc"
+export { casoValido, rutas } from "./rutas"
+export type { ToolContext, ToolDef, ToolResult } from "./tipos"
 
 function esToolDef(valor: unknown): valor is ToolDef {
   if (typeof valor !== "object" || valor === null) return false
@@ -38,6 +38,9 @@ export async function ejecutar(nombre: string, args: unknown, ctx: ToolContext):
   try {
     return await def.execute(parsed.data, ctx)
   } catch (e) {
-    return JSON.stringify({ ok: false, error: `Error inesperado en ${nombre}: ${e instanceof Error ? e.message : String(e)}` })
+    return JSON.stringify({
+      ok: false,
+      error: `Error inesperado en ${nombre}: ${e instanceof Error ? e.message : String(e)}`,
+    })
   }
 }

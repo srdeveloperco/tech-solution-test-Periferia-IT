@@ -1,10 +1,10 @@
 /** Escribe la evidencia de aprobación: aprobacion.txt (P0) y aprobacion.pdf (P1, pdf-lib). */
 import { mkdir, writeFile } from "node:fs/promises"
-import { join, relative } from "node:path"
+import { join } from "node:path"
 import { construirEvidencia, type Evidencia } from "@oc/domain"
 import { PDFDocument, type PDFFont, rgb, StandardFonts } from "pdf-lib"
 import { leerAprobacionCruda, leerPaquete } from "./fuentes"
-import { rutas } from "./rutas"
+import { rutas, rutaVisible } from "./rutas"
 
 /** Las fuentes estándar de PDF usan WinAnsi: reemplaza lo que no se puede codificar. */
 function aWinAnsi(texto: string): string {
@@ -79,5 +79,8 @@ export async function escribirEvidencia(
   const pdf = join(carpeta, "aprobacion.pdf")
   await writeFile(txt, ev.archivo, "utf8")
   await writeFile(pdf, await generarPdf(ev, aprobacion.data.fecha))
-  return { ok: true, data: { ruta: relative(directory, txt), ruta_pdf: relative(directory, pdf), sha256: ev.sha256 } }
+  return {
+    ok: true,
+    data: { ruta: rutaVisible(directory, txt), ruta_pdf: rutaVisible(directory, pdf), sha256: ev.sha256 },
+  }
 }

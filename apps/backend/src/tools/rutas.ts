@@ -1,4 +1,4 @@
-import { join } from "node:path"
+import { isAbsolute, join, relative } from "node:path"
 
 const CASO_VALIDO = /^[a-z0-9][a-z0-9-]{0,63}$/
 
@@ -21,4 +21,10 @@ export function rutas(directory: string) {
     control: join(out, "control.csv"),
     log: join(out, "log.jsonl"),
   }
+}
+
+/** Ruta para mostrar: relativa a la raíz si está dentro del proyecto; absoluta si OUT_DIR apunta afuera. */
+export function rutaVisible(directory: string, absoluta: string): string {
+  const r = relative(directory, absoluta)
+  return r.startsWith("..") || isAbsolute(r) ? absoluta : r
 }

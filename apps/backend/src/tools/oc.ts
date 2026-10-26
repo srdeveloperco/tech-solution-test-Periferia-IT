@@ -4,7 +4,7 @@
  * Regla de diseño: las herramientas recalculan desde las fuentes del caso; lo que mande el modelo se verifica, no se cree.
  */
 import { mkdir, writeFile } from "node:fs/promises"
-import { join, relative } from "node:path"
+import { join } from "node:path"
 import {
   construirEvidencia,
   construirOrden,
@@ -21,7 +21,7 @@ import { SapMock } from "../sap/mock"
 import { registrarControl } from "./control"
 import { escribirEvidencia } from "./evidencia"
 import { leerAprobacionCruda, leerMaestros, leerPaquete } from "./fuentes"
-import { rutas } from "./rutas"
+import { rutas, rutaVisible } from "./rutas"
 import type { ToolContext } from "./tipos"
 
 // ── utilidades ───────────────────────────────────────────────────────────────
@@ -145,7 +145,11 @@ export const construir_payload = {
         derivados: validacion.derivados,
       }
       await writeFile(archivo, `${JSON.stringify(registro, null, 2)}\n`, "utf8")
-      return ok({ orden: r.orden, trazabilidad: r.trazabilidad, trazabilidad_ruta: relative(ctx.directory, archivo) })
+      return ok({
+        orden: r.orden,
+        trazabilidad: r.trazabilidad,
+        trazabilidad_ruta: rutaVisible(ctx.directory, archivo),
+      })
     })
   },
 }

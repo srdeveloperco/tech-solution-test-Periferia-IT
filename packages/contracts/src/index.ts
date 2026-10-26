@@ -209,3 +209,16 @@ export type ObservatorioResumen = {
   prompts: Array<{ hash: string; agente: string; usos: number; primeraVez: string }>
 }
 /** GET /api/observatorio/interacciones?limite=50 → InteraccionResumen[] */
+
+// ── Historial de conversaciones ──────────────────────────────────────────────
+
+/** GET /api/sessions → conversaciones del usuario autenticado, más recientes primero. */
+export type ConversacionResumen = {
+  sessionId: string
+  titulo: string // primer mensaje del usuario, recortado
+  creada: string
+  actualizada: string
+  mensajes: number
+  casos: string[] // casos tocados en la conversación
+  costoUsd: number
+}
